@@ -1,0 +1,6 @@
+streamlit==1.39.0
+pandas>=2.2
+plotly>=5.22
+streamlit-plotly-events>=0.0.6
+reportlab>=4.1.0
+kaleido==0.2.1
