@@ -30,7 +30,7 @@ st.markdown("<hr style='margin-top:6px;margin-bottom:10px' />", unsafe_allow_htm
 
 # -------------------- Sidebar --------------------
 st.sidebar.title("📦 CIN7 PO Dashboard v5.2")
-st.sidebar.caption("Upload a CIN7 Purchase Orders CSV")
+st.sidebar.caption("Upload a CIN7 Purchase Order CSV")
 
 uploaded = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 watch_path = st.sidebar.text_input("Or load from a path (optional)", value="")
