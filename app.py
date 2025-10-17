@@ -240,12 +240,18 @@ if supplier_col and (sel_suppliers or not suppliers):
         pie_df = s_status.groupby("Status").size().reset_index(name="Count")
         if not pie_df.empty:
             fig_pie = px.pie(pie_df, values="Count", names="Status", title="Supply Performance", hole=0.3)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="%{label}: %{value} POs")
-            sel = plotly_events(fig_pie, click_event=True, select_event=False, hover_event=True, override_height=360, override_width="100%")
-            c2.plotly_chart(fig_pie, use_container_width=True)
-            clicked_filter = None
-            if sel:
-                clicked_filter = sel[0].get("label")
+            fig_pie.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate="%{label}: %{value} POs"
+            )
+
+           # Display the chart once (removed duplicate rendering from plotly_events)
+           c2.plotly_chart(fig_pie, use_container_width=True)
+
+           # Disable interactive selection (no event rendering = no second black chart)
+           clicked_filter = None
+
         else:
             c2.info("No PO supply status available.")
 
