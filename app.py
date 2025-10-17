@@ -237,20 +237,19 @@ if supplier_col and (sel_suppliers or not suppliers):
             c1.info("No data for spend trend.")
 
         # Supply performance pie (single chart)
-        pie_df = s_status.groupby("Status").size().reset_index(name="Count")
-        if not pie_df.empty:
-            fig_pie = px.pie(pie_df, values="Count", names="Status", title="Supply Performance", hole=0.3)
-            fig_pie.update_traces(
-                textposition='inside',
-                textinfo='percent+label',
-                hovertemplate="%{label}: %{value} POs"
-            )
+                fig_pie = px.pie(pie_df, values="Count", names="Status", title="Supply Performance", hole=0.3)
+        fig_pie.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            hovertemplate="%{label}: %{value} POs"
+        )
 
-           # Display the chart once (removed duplicate rendering from plotly_events)
-           c2.plotly_chart(fig_pie, use_container_width=True)
+        # Display the chart once (removed duplicate rendering from plotly_events)
+        c2.plotly_chart(fig_pie, use_container_width=True)
 
-           # Disable interactive selection (no event rendering = no second black chart)
-           clicked_filter = None
+        # Disable interactive selection (no event rendering = no second black chart)
+        clicked_filter = None
+
 
         else:
             c2.info("No PO supply status available.")
