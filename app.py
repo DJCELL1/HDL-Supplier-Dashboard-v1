@@ -230,7 +230,46 @@ if supplier_col and (sel_suppliers or not suppliers):
                    .head(15))
             st.dataframe(agg, use_container_width=True, height=320)
         else:
+                    else:
             st.info("Item details not available in this dataset.")
+
+        # -------------------- OPEN POS BY MONTH/YEAR --------------------
+        st.markdown("#### Open POs by Month/Year")
+
+        if {"Item Qty", "Item Qty Moved", "Item Price (Local Currency)", "Created Date"}.issubset(sframe.columns):
+            sframe["OpenQty"] = sframe["Item Qty"].fillna(0) - sframe["Item Qty Moved"].fillna(0)
+            sframe["OpenValue"] = sframe["OpenQty"] * sframe["Item Price (Local Currency)"].fillna(0)
+
+            open_summary = (
+                sframe[sframe["OpenQty"] > 0]
+                .assign(MonthYear=sframe["Created Date"].dt.to_period("M").dt.to_timestamp())
+                .groupby("MonthYear", as_index=False)
+                .agg(OpenQty=("OpenQty", "sum"), OpenValue=("OpenValue", "sum"))
+                .sort_values("MonthYear", ascending=False)
+            )
+
+            if not open_summary.empty:
+                # Format for display
+                open_summary["Month-Year"] = open_summary["MonthYear"].dt.strftime("%b %Y")
+                open_summary["Open Qty"] = open_summary["OpenQty"].astype(int)
+                open_summary["Open Value ($)"] = open_summary["OpenValue"].apply(lambda x: f"${x:,.0f}")
+                open_summary = open_summary[["Month-Year", "Open Qty", "Open Value ($)"]]
+
+                # Apply highlighting for Open Value > $10,000
+                def highlight_high_value(row):
+                    value_str = row["Open Value ($)"].replace("$", "").replace(",", "")
+                    return ["background-color: #ffe5e5" if float(value_str) > 10000 else "" for _ in row]
+
+                st.dataframe(
+                    open_summary.style.apply(highlight_high_value, axis=1),
+                    use_container_width=True,
+                    height=300
+                )
+            else:
+                st.info("All POs for this supplier have been fully received.")
+        else:
+            st.info("Missing required columns to calculate open POs.")
+
 else:
     st.info("Use the sidebar to select suppliers to analyze.")
 
