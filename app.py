@@ -12,7 +12,11 @@ import plotly.io as pio
 import streamlit as st
 
 # -------------------- Page setup --------------------
-st.set_page_config(page_title="Hardware Direct | CIN7 Purchase Order Dashboard", page_icon="📦", layout="wide")
+st.set_page_config(
+    page_title="Hardware Direct | CIN7 Purchase Order Dashboard",
+    page_icon="📦",
+    layout="wide"
+)
 
 # -------------------- Header --------------------
 logo_path = Path(__file__).parent / "logo.png"
@@ -25,7 +29,7 @@ with header_cols[1]:
 st.markdown("<hr style='margin-top:6px;margin-bottom:10px' />", unsafe_allow_html=True)
 
 # -------------------- Sidebar --------------------
-st.sidebar.title("📦 CIN7 PO Dashboard v5.1")
+st.sidebar.title("📦 CIN7 PO Dashboard v5.2")
 st.sidebar.caption("Upload a CIN7 Purchase Orders CSV")
 
 uploaded = st.sidebar.file_uploader("Upload CSV", type=["csv"])
@@ -170,7 +174,8 @@ df_date["Value"] = df_date[value_col]
 if "Created Month" in df_date.columns and "Value" in df_date.columns:
     trend_all = df_date.groupby("Created Month", as_index=False)["Value"].sum()
     fig_global = px.line(trend_all, x="Created Month", y="Value")
-    fig_global.update_traces(mode="lines+markers", line=dict(shape="spline", color="#0ea5e9", width=3),
+    fig_global.update_traces(mode="lines+markers",
+                             line=dict(shape="spline", color="#0ea5e9", width=3),
                              fill="tozeroy", fillcolor="rgba(14,165,233,0.2)")
     fig_global.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=320)
     st.plotly_chart(fig_global, use_container_width=True)
@@ -206,7 +211,8 @@ if supplier_col and (sel_suppliers or not suppliers):
         if "Created Month" in sframe.columns and not sframe.empty:
             s_month = sframe.groupby("Created Month", as_index=False)["Value"].sum()
             fig_s_trend = px.line(s_month, x="Created Month", y="Value", title="Supplier Spend Trend")
-            fig_s_trend.update_traces(mode="lines+markers", line=dict(shape="spline", color="#0ea5e9", width=3),
+            fig_s_trend.update_traces(mode="lines+markers",
+                                      line=dict(shape="spline", color="#0ea5e9", width=3),
                                       fill="tozeroy", fillcolor="rgba(14,165,233,0.2)")
             fig_s_trend.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=360)
             c1.plotly_chart(fig_s_trend, use_container_width=True)
@@ -214,12 +220,13 @@ if supplier_col and (sel_suppliers or not suppliers):
         pie_df = s_status.groupby("Status").size().reset_index(name="Count")
         if not pie_df.empty:
             fig_pie = px.pie(pie_df, values="Count", names="Status", title="Supply Performance", hole=0.3)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="%{label}: %{value} POs")
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label',
+                                  hovertemplate="%{label}: %{value} POs")
             c2.plotly_chart(fig_pie, use_container_width=True)
         else:
             c2.info("No PO supply status available.")
 
-        # Most popular items table
+        # -------------------- MOST POPULAR ITEMS --------------------
         st.markdown("#### Most Popular Items Ordered")
         table_df = sframe.copy()
         if "Item Name" in table_df.columns and "Item Code" in table_df.columns:
@@ -230,51 +237,45 @@ if supplier_col and (sel_suppliers or not suppliers):
                    .head(15))
             st.dataframe(agg, use_container_width=True, height=320)
         else:
-                    else:
             st.info("Item details not available in this dataset.")
 
-        # -------------------- OPEN POS BY MONTH/YEAR --------------------
-        st.markdown("#### Open POs by Month/Year")
+        # -------------------- OPEN POs BY MONTH / YEAR --------------------
+        st.markdown("#### Open POs by Month / Year")
+        sframe["OpenQty"] = sframe["Item Qty"].fillna(0) - sframe["Item Qty Moved"].fillna(0)
+        sframe["OpenValue"] = sframe["OpenQty"] * sframe["Item Price (Local Currency)"].fillna(0)
 
-        if {"Item Qty", "Item Qty Moved", "Item Price (Local Currency)", "Created Date"}.issubset(sframe.columns):
-            sframe["OpenQty"] = sframe["Item Qty"].fillna(0) - sframe["Item Qty Moved"].fillna(0)
-            sframe["OpenValue"] = sframe["OpenQty"] * sframe["Item Price (Local Currency)"].fillna(0)
+        open_df = (
+            sframe[sframe["OpenQty"] > 0]
+            .assign(MonthYear=sframe["Created Date"].dt.to_period("M").dt.to_timestamp())
+            .groupby("MonthYear", as_index=False)
+            .agg(OpenQty=("OpenQty", "sum"), OpenValue=("OpenValue", "sum"))
+            .sort_values("MonthYear", ascending=False)
+        )
 
-            open_summary = (
-                sframe[sframe["OpenQty"] > 0]
-                .assign(MonthYear=sframe["Created Date"].dt.to_period("M").dt.to_timestamp())
-                .groupby("MonthYear", as_index=False)
-                .agg(OpenQty=("OpenQty", "sum"), OpenValue=("OpenValue", "sum"))
-                .sort_values("MonthYear", ascending=False)
+        if not open_df.empty:
+            open_df["MonthYear"] = open_df["MonthYear"].dt.strftime("%b %Y")
+            open_df["OpenQty"] = open_df["OpenQty"].round(0).astype(int)
+            open_df["OpenValue"] = open_df["OpenValue"].round(2)
+
+            def highlight_high_value(val):
+                color = "#ffe5e5" if val > 10000 else "#ffffff"
+                return f"background-color: {color}"
+
+            styled = (
+                open_df.style
+                .applymap(lambda _: "background-color: #f5f5f5", subset=["MonthYear"])
+                .applymap(highlight_high_value, subset=["OpenValue"])
+                .format({"OpenValue": "${:,.0f}", "OpenQty": "{:,}"})
             )
 
-            if not open_summary.empty:
-                # Format for display
-                open_summary["Month-Year"] = open_summary["MonthYear"].dt.strftime("%b %Y")
-                open_summary["Open Qty"] = open_summary["OpenQty"].astype(int)
-                open_summary["Open Value ($)"] = open_summary["OpenValue"].apply(lambda x: f"${x:,.0f}")
-                open_summary = open_summary[["Month-Year", "Open Qty", "Open Value ($)"]]
-
-                # Apply highlighting for Open Value > $10,000
-                def highlight_high_value(row):
-                    value_str = row["Open Value ($)"].replace("$", "").replace(",", "")
-                    return ["background-color: #ffe5e5" if float(value_str) > 10000 else "" for _ in row]
-
-                st.dataframe(
-                    open_summary.style.apply(highlight_high_value, axis=1),
-                    use_container_width=True,
-                    height=300
-                )
-            else:
-                st.info("All POs for this supplier have been fully received.")
+            st.dataframe(styled, use_container_width=True, height=320)
         else:
-            st.info("Missing required columns to calculate open POs.")
+            st.info("No open POs found for this supplier.")
 
 else:
     st.info("Use the sidebar to select suppliers to analyze.")
 
-# -------------------- PDF EXPORT --------------------
+# -------------------- PDF EXPORT (placeholder) --------------------
 st.markdown("---")
 st.markdown("### 📤 Generate Management PDF")
-# (PDF export section unchanged)
-
+st.caption("📘 PDF export logic coming from v5.1 – will include Open POs table below 'Most Popular Items' when enabled.")
